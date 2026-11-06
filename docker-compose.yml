@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: dev_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - dev_network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: dev_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dev_network
+
+  mongodb:
+    image: mongo:6.0
+    container_name: dev_mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - dev_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: dev_phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+    depends_on:
+      - mysql
+    networks:
+      - dev_network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: dev_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - dev_network
+
+  mongo-express:
+    image: mongo-express
+    container_name: dev_mongo_express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/
+    depends_on:
+      - mongodb
+    networks:
+      - dev_network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: dev_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15674:15674"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    networks:
+      - dev_network
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: dev_mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+    networks:
+      - dev_network
+
+  php-api:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    container_name: dev_php_api
+    restart: always
+    volumes:
+      - ./php/src:/var/www/html
+    networks:
+      - dev_network
+
+  python-api:
+    build:
+      context: ./python
+      dockerfile: Dockerfile
+    container_name: dev_python_api
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./python/app:/app
+    networks:
+      - dev_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dev_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - dev_network
+
+networks:
+  dev_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  postgres_data:
+  mongo_data:
